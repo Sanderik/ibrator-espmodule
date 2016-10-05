@@ -1,12 +1,27 @@
-print("Setting up access point")
-
 wifi.setmode(wifi.STATIONAP)
 wifi.ap.config({ssid="iBrator", auth=wifi.OPEN})
 
+default_headers = 'Content-Type: application/json\r\n'
+base_url = "http://192.168.2.102/ibrator-server/web/app_dev.php/api"
+
 function register_device()
-    http.get("http://www.google.com", nil, function(code, data)
-        print(code)
+    body = '{"hostname": "' .. wifi.sta.getmac() .. '"}'
+   
+    http.post(base_url .. "/device", default_headers, body,
+        function(code, data)
+            if(code == 201) then
+                print(data)
+            else
+                print("something went wrong")
+            end
     end)
+end
+
+function check_updates()
+    http.get(base_url .. "/update", default_headers, 
+        function(code,data)
+            --TODO : this
+    end) 
 end
 
 enduser_setup.manual(true)
