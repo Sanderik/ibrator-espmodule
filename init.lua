@@ -1,12 +1,65 @@
-local server_factory  = require("server_factory")
-local message_handler = require("message_handler") 
 local default_headers = 'Content-Type: application/json\r\n'
 
+-- Server factory
+local server_factory = {} 
+
+server_factory.start_webserver = function(connection_token)
+    print("creating webserver")
+    server = net.createServer(net.TCP)
+    server:listen(80,function(conn) 
+        conn:on("receive", function(client,request)
+            local buf = ""; 
+            
+            buf = buf.."<html><body><h2>Your connection token: </h2>"
+            buf = buf..connection_token.."<br/><br/>"
+            buf = buf.."<i>Use this token to connect your vibrator to your account</i>"
+            
+            client:send(buf);
+            client:close();
+            collectgarbage();
+        end) 
+    end)
+end
+
+-- Message Handler
+local message_handler = {} 
+local pin = 4
+local value = gpio.LOW
+
+function toggleLED ()
+    if value == gpio.LOW then
+        value = gpio.HIGH
+    else
+        value = gpio.LOW
+    end
+ 
+    gpio.write(pin, value)
+end 
+
+ 
+message_handler.handle = function(msg)
+    value = gpio.LOW
+    gpio.mode(pin, gpio.OUTPUT)
+    gpio.write(pin, value)
+  
+    json = cjson.decode(msg)
+
+    if(json["duration"] == nil) then
+        print("nill")
+    else 
+        duration = json["duration"]
+        print(duration)
+        if not tmr.alarm(0, duration * 1000, tmr.ALARM_SINGLE, function() toggleLED() end) then print("error") end
+    end
+    
+end 
+
+-- WIFI setup.
 wifi.setmode(wifi.STATIONAP)
 wifi.ap.config({ssid="iBrator", auth=wifi.OPEN})
 
 enduser_setup.manual(true)
-enduser_setup.start(
+enduser_setup.start( 
     function()
         print("Connected as :" .. wifi.sta.getip())
         wifi.setmode(wifi.STATION)
