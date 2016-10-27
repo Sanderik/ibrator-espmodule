@@ -1,16 +1,14 @@
 local default_headers = 'Content-Type: application/json\r\n'
+local version = 1
+local base_url = "http://192.168.2.106:8080"
+local connectionToken = nil
 
--- Server factory
-local server_factory = {} 
-
-server_factory.start_webserver = function(connection_token)
-    print("creating webserver")
+-- Webserver 
+function start_webserver(connection_token)
     server = net.createServer(net.TCP)
-    server:listen(80,function(conn) 
-        conn:on("receive", function(client,request)
-            local buf = ""; 
-            
-            buf = buf.."<html><body><h2>Your connection token: </h2>"
+    server:listen(80, function(conn) 
+        conn:on("receive", function(client,request)           
+            local buf = "<html><body><h2>Your connection token: </h2>"
             buf = buf..connection_token.."<br/><br/>"
             buf = buf.."<i>Use this token to connect your vibrator to your account</i>"
             
@@ -22,7 +20,6 @@ server_factory.start_webserver = function(connection_token)
 end
 
 -- Message Handler
-local message_handler = {} 
 local pin = 4
 local value = gpio.LOW
 
@@ -37,7 +34,7 @@ function toggleLED ()
 end 
 
  
-message_handler.handle = function(msg)
+function handle_socket_msg(msg)
     value = gpio.LOW
     gpio.mode(pin, gpio.OUTPUT)
     gpio.write(pin, value)
@@ -54,6 +51,62 @@ message_handler.handle = function(msg)
     
 end 
 
+-- Update mechanism 
+function check_for_updates() 
+    headers = default_headers .. 'Authorization:' .. connectionToken .. '\r\n'
+    http.get(base_url .. "/firmware/version/" .. version, headers, function(code, data) 
+
+        -- If a new version is available, replace it with the old version, but save a backup.
+        if(code == 200) then
+--            if file.exists("init-new.lua") then 
+
+                -- Remove old backups, they are not needed anymore because of new backups.
+                file.remove("init-new.lua")
+                file.remove("init-old.lua")
+--            end 
+             
+            if file.open("init-new.lua", "w") then
+                file.write(data)
+                file.close()
+
+                -- Save a backup 
+                if not file.rename("init.lua", "init-old.lua") then
+                    print("something went wrong")
+                end
+
+                -- Replace old init.lua with the new one.
+                if not file.rename("init-new.lua", "init.lua") then
+                    print("something went wrong here")
+                end
+
+                -- Restart
+                print("Update success restarting now...")
+                node.restart()
+            else
+                print("cannot open")
+            end
+        end
+    end) 
+end  
+
+-- Web sockets 
+function create_socket_connection()
+    ws = websocket.createClient()
+    ws:on("connection", function(ws)
+      ws:send(cjson.encode({token = connectionToken}))
+      print("got ws connection")
+    end)
+    ws:on("receive", function(_, msg, opcode)
+      handle_socket_msg(msg)
+      print('got message:', msg, opcode) 
+    end)
+    ws:on("close", function(_, status)
+      print('connection closed', status)
+      ws = nil 
+    end)
+    ws:connect("ws://192.168.2.106:8080/ws/vibrate")
+end
+
 -- WIFI setup.
 wifi.setmode(wifi.STATIONAP)
 wifi.ap.config({ssid="iBrator", auth=wifi.OPEN})
@@ -65,37 +118,20 @@ enduser_setup.start(
         wifi.setmode(wifi.STATION)
         enduser_setup.stop() 
  
-        print(node.chipid()) 
-
-        http.post("http://192.168.2.106:8080/device", default_headers, '{"chipId" : "'.. node.chipid()..'"}"',
+        http.post(base_url .. "/device", default_headers, '{"chipId" : "'.. node.chipid()..'"}"',
             function(statuscode, data)
-                print(data)
-                print(statuscode)
                 if(statuscode == 200) then
                     json = cjson.decode(data)
-
                     connectionToken = json["connectionToken"]
                     if(json["user"] == null) then
                         server_factory.start_webserver(connectionToken)
-                    else
-                        print("starting ws client") 
-                        ws = websocket.createClient()
-                        ws:on("connection", function(ws)
-                          ws:send(cjson.encode({token = connectionToken}))
-                          print("got ws connection")
-                        end)
-                        ws:on("receive", function(_, msg, opcode)
-                          message_handler.handle(msg)
-                          print('got message:', msg, opcode) 
-                        end)
-                        ws:on("close", function(_, status)
-                          print('connection closed', status)
-                          ws = nil 
-                        end)
-                        ws:connect("ws://192.168.2.106:8080/ws/vibrate")
+                    else 
+                        create_socket_connection(connectionToken)
+                        node.task.post(check_for_updates)
                     end
                 end
             end)
+--            check_for_updates(connectionToken)
 
     end,
     function(err, str)
