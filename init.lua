@@ -109,7 +109,7 @@ function initialize_device()
             if(statuscode == 200) then
                 json = cjson.decode(data)
                 connectionToken = json["connectionToken"]
-                if(json["user"] == null) then
+                if(json["hasUser"] == false) then
                     start_webserver(connectionToken)
                 else 
                     create_socket_connection(connectionToken)
