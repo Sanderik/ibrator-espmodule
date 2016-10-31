@@ -58,13 +58,9 @@ function check_for_updates()
 
         -- If a new version is available, replace it with the old version, but save a backup.
         if(code == 200) then
---            if file.exists("init-new.lua") then 
+            file.remove("init-new.lua")
+            file.remove("init-old.lua")
 
-                -- Remove old backups, they are not needed anymore because of new backups.
-                file.remove("init-new.lua")
-                file.remove("init-old.lua")
---            end 
-             
             if file.open("init-new.lua", "w") then
                 file.write(data)
                 file.close()
@@ -108,8 +104,8 @@ function create_socket_connection()
 end
 
 -- WIFI setup.
-wifi.setmode(wifi.STATIONAP)
-wifi.ap.config({ssid="iBrator", auth=wifi.OPEN})
+wifi.setmode(wifi.STATIONAP) 
+wifi.ap.config({ssid="iBrator", auth=wifi.WPA2_PSK, pwd="12345678"})
 
 enduser_setup.manual(true)
 enduser_setup.start( 
