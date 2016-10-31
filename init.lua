@@ -1,6 +1,6 @@
 local default_headers = 'Content-Type: application/json\r\n'
 local version = 1
-local base_url = "http://192.168.2.106:8080"
+local base_url = "https://sanderdewinter.me:8443"
 local connectionToken = nil
 
 -- Webserver 
@@ -100,7 +100,7 @@ function create_socket_connection()
       print('connection closed', status)
       ws = nil 
     end)
-    ws:connect("ws://192.168.2.106:8080/ws/vibrate")
+    ws:connect("wss://sanderdewinter.me:8443/ws/vibrate")
 end
 
 function initialize_device()
