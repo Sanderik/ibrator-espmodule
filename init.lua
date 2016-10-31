@@ -20,7 +20,7 @@ function start_webserver(connection_token)
 end
 
 -- Message Handler
-local pin = 4
+local pin = 1
 local value = gpio.LOW
 
 function toggleLED ()
@@ -35,7 +35,7 @@ end
 
  
 function handle_socket_msg(msg)
-    value = gpio.LOW
+    value = gpio.HIGH
     gpio.mode(pin, gpio.OUTPUT)
     gpio.write(pin, value)
   
