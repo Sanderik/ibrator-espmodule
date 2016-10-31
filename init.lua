@@ -103,6 +103,22 @@ function create_socket_connection()
     ws:connect("ws://192.168.2.106:8080/ws/vibrate")
 end
 
+function initialize_device()
+    http.post(base_url .. "/device", default_headers, '{"chipId" : "'.. node.chipid()..'"}"',
+        function(statuscode, data)
+            if(statuscode == 200) then
+                json = cjson.decode(data)
+                connectionToken = json["connectionToken"]
+                if(json["user"] == null) then
+                    start_webserver(connectionToken)
+                else 
+                    create_socket_connection(connectionToken)
+                    node.task.post(check_for_updates)
+                end
+            end
+        end)
+end
+
 -- WIFI setup.
 wifi.setmode(wifi.STATIONAP) 
 wifi.ap.config({ssid="iBrator", auth=wifi.WPA2_PSK, pwd="12345678"})
@@ -112,23 +128,9 @@ enduser_setup.start(
     function()
         print("Connected as :" .. wifi.sta.getip())
         wifi.setmode(wifi.STATION)
+        
         enduser_setup.stop() 
- 
-        http.post(base_url .. "/device", default_headers, '{"chipId" : "'.. node.chipid()..'"}"',
-            function(statuscode, data)
-                if(statuscode == 200) then
-                    json = cjson.decode(data)
-                    connectionToken = json["connectionToken"]
-                    if(json["user"] == null) then
-                        server_factory.start_webserver(connectionToken)
-                    else 
-                        create_socket_connection(connectionToken)
-                        node.task.post(check_for_updates)
-                    end
-                end
-            end)
---            check_for_updates(connectionToken)
-
+        initialize_device()
     end,
     function(err, str)
         print("Error: " .. err ": " .. str)
