@@ -45,10 +45,17 @@ function handle_socket_msg(msg)
         print("nill")
     else 
         duration = json["duration"]
-        print(duration)
-        if not tmr.alarm(0, duration * 1000, tmr.ALARM_SINGLE, function() toggleLED() end) then print("error") end
+        if (duration == 0) then 
+            print("stop timer")
+            tmr.stop(0)
+            toggleLED()
+        else 
+            tmr.start(0)
+            interval = (100 - duration + 1) * 10
+            print(interval)
+            if not tmr.alarm(0, interval, tmr.ALARM_AUTO, function() toggleLED() end) then print("error") end
+        end
     end
-    
 end 
 
 -- Update mechanism 
